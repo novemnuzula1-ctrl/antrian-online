@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Antrian Smart</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f4f7f6; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; }
+        #nomor { font-size: 80px; color: #e74c3c; margin: 10px 0; }
+        .info { font-size: 18px; color: #7f8c8d; }
+        #estimasi { font-weight: bold; color: #27ae60; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>NOMOR SEKARANG</h1>
+        <div id="nomor">0</div>
+        <p class="info">Silakan masukkan nomor antrian Anda:</p>
+        <input type="number" id="inputNomor" placeholder="Contoh: 15" style="padding:10px; width:60px;">
+        <hr>
+        <p class="info">Estimasi Tunggu: <span id="estimasi">--</span></p>
+    </div>
+
+    <script>
+        // --- 1. COPY CONFIG DARI FIREBASE CONSOLE ---
+        var firebaseConfig = {
+            apiKey: "ISI_API_KEY",
+            databaseURL: "https://antriansmart-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "antriansmart",
+        };
+        firebase.initializeApp(firebaseConfig);
+
+        var db = firebase.database();
+        var nomorSaya = 0;
+
+        // Mendengarkan perubahan di Firebase
+        db.ref().on("value", function(snapshot) {
+            var data = snapshot.val();
+            var sekarang = data.panggilan_sekarang || 0;
+            
+            // Update nomor di layar
+            document.getElementById("nomor").innerText = sekarang;
+
+            // Hitung estimasi otomatis
+            nomorSaya = document.getElementById("inputNomor").value;
+            hitungEstimasi(sekarang, nomorSaya);
+        });
+
+        function hitungEstimasi(sekarang, saya) {
+            if (saya > sekarang) {
+                var sisa = saya - sekarang;
+                var menit = sisa * 5; // Asumsi 5 menit per orang
+                document.getElementById("estimasi").innerText = menit + " menit lagi";
+            } else if (saya != 0 && saya <= sekarang) {
+                document.getElementById("estimasi").innerText = "Silakan ke Loket!";
+            }
+        }
+    </script>
+</body>
+</html>
