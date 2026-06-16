@@ -8,23 +8,36 @@
     <style>
         body { font-family: sans-serif; text-align: center; background: #f4f7f6; padding: 20px; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
-        h1 { color: #2c3e50; font-size: 24px; }
-        #nomor { font-size: 80px; color: #e74c3c; margin: 10px 0; font-weight: bold; }
-        .info { font-size: 18px; color: #7f8c8d; }
-        #estimasi { font-weight: bold; color: #27ae60; }
-        input { padding: 10px; width: 80px; text-align: center; font-size: 18px; border-radius: 8px; border: 1px solid #ccc; }
-        input:invalid { border: 2px solid #e74c3c; background: #fce4e4; }
+        h1 { color: #2c3e50; font-size: 22px; margin-bottom: 5px; }
+        #nomor { font-size: 80px; color: #e74c3c; margin: 5px 0; font-weight: bold; }
+        .info { font-size: 16px; color: #7f8c8d; margin: 10px 0; }
+        #estimasi { font-weight: bold; color: #27ae60; font-size: 18px; }
+        
+        /* Style Tombol Ambil Antrian Baru */
+        .btn-ambil { background: #3498db; color: white; border: none; padding: 15px 30px; font-size: 18px; font-weight: bold; border-radius: 10px; cursor: pointer; width: 100%; max-width: 250px; margin-top: 10px; transition: 0.2s; }
+        .btn-ambil:hover { background: #2980b9; }
+        .btn-ambil:disabled { background: #bdc3c7; cursor: not-allowed; }
+        
+        .box-tiket { background: #e8f4f8; padding: 15px; border-radius: 10px; margin-top: 15px; border: 2px dashed #3498db; }
+        #nomorSayaTeks { font-size: 32px; color: #2c3e50; font-weight: bold; margin: 5px 0; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h1>NOMOR SEKARANG</h1>
+        <h1>NOMOR SEDANG DILAYANI</h1>
         <div id="nomor">0</div>
-        <p class="info">Silakan masukkan nomor antrian Anda:</p>
-        <input type="number" id="inputNomor" min="1" placeholder="Ex: 15">
-        <hr style="border: 1px dashed #eee; margin: 20px 0;">
-        <p class="info">Estimasi Tunggu:<br><span id="estimasi">--</span></p>
+        
+        <hr style="border: 1px dashed #eee; margin: 15px 0;">
+        
+        <p class="info">Klik tombol di bawah untuk mengambil nomor antrian Anda:</p>
+        <button id="btnAmbilAntrian" class="btn-ambil">AMBIL NOMOR</button>
+        
+        <div id="boxTiket" class="box-tiket" style="display: none;">
+            <p class="info" style="margin:0; color:#3498db; font-weight:bold;">TIKET ANTRIAN ANDA</p>
+            <div id="nomorSayaTeks">0</div>
+            <p class="info" style="margin:0;">Estimasi Tunggu:<br><span id="estimasi">--</span></p>
+        </div>
     </div>
 
     <script>
@@ -38,65 +51,73 @@
         firebase.initializeApp(firebaseConfig);
 
         var db = firebase.database();
+        var antrianTerakhirGlobal = 0;
+        var nomorLokalSaya = localStorage.getItem("nomor_tiket_saya") || 0; // Menyimpan nomor di HP agar tidak hilang saat di-refresh
 
-        // 1. Mendengarkan perubahan data di Firebase
-        db.ref("/panggilan_sekarang").on("value", function(snapshot) {
-            var sekarang = parseInt(snapshot.val()) || 0;
+        // Jika pelanggan sudah pernah klik ambil nomor sebelumnya, langsung munculkan tiketnya
+        if (nomorLokalSaya > 0) {
+            tampilkanTiketSaya(nomorLokalSaya);
+        }
+
+        // 1. Memantau Jalur Antrian Sekarang (Loket) & Antrian Terakhir
+        db.ref().on("value", function(snapshot) {
+            var data = snapshot.val();
+            var sekarang = parseInt(data.panggilan_sekarang) || 0;
+            antrianTerakhirGlobal = parseInt(data.antrian_terakhir) || 0;
+            
+            // Update nomor loket berjalan di web
             document.getElementById("nomor").innerText = sekarang;
 
-            var inputElemen = document.getElementById("inputNomor");
+            // Jika pelanggan sudah punya nomor, update terus estimasi waktunya secara real-time
+            if (nomorLokalSaya > 0) {
+                hitungEstimasiWaktu(sekarang, nomorLokalSaya);
+            }
+        });
+
+        // 2. Logika Ambil Nomor Otomatis saat Tombol Diklik
+        document.getElementById("btnAmbilAntrian").addEventListener("click", function() {
+            // Naikkan 1 angka dari antrian terakhir yang tercatat di server
+            var nomorBaru = antrianTerakhirGlobal + 1;
             
-            // KUNCI UTAMA: Mengubah batas minimal input secara dinamis (Nomor Sekarang + 1)
-            // Jadi jika loket = 4, maka minimal input yang diizinkan adalah 5
-            var batasMinimal = sekarang + 1;
-            inputElemen.min = batasMinimal;
-
-            var nomorSaya = parseInt(inputElemen.value) || 0;
-
-            // Jika nomor yang sedang dimasukkan tiba-tiba tersusul oleh loket
-            if (nomorSaya > 0 && nomorSaya <= sekarang) {
-                inputElemen.value = ""; 
-                tampilkanPesanError(sekarang);
-            } else {
-                hitungEstimasi(sekarang, nomorSaya);
-            }
-        });
-
-        // 2. Mendengarkan input ketikan pelanggan secara real-time
-        document.getElementById("inputNomor").addEventListener("input", function() {
+            // Kirim nomor baru ini ke laci antrian_terakhir di Firebase
+            db.ref("/antrian_terakhir").set(nomorBaru);
+            
+            // Simpan nomor ini di memori HP pelanggan agar kalau web tertutup, nomornya tidak hilang
+            nomorLokalSaya = nomorBaru;
+            localStorage.setItem("nomor_tiket_saya", nomorBaru);
+            
+            // Tampilkan ke layar HP pelanggan
+            tampilkanTiketSaya(nomorBaru);
+            
+            // Jalankan hitung estimasi pertama kali
             var sekarang = parseInt(document.getElementById("nomor").innerText) || 0;
-            var saya = parseInt(this.value) || 0;
-
-            // Jika pelanggan nekat mengetik angka yang sama atau di bawah nomor sekarang
-            if (saya > 0 && saya <= sekarang) {
-                this.value = ""; // Langsung hapus paksa jalurnya
-                tampilkanPesanError(sekarang);
-            } else {
-                hitungEstimasi(sekarang, saya);
-            }
+            hitungEstimasiWaktu(sekarang, nomorBaru);
         });
 
-        // Fungsi menampilkan pesan penolakan yang dinamis
-        function tampilkanPesanError(sekarang) {
-            var infoEstimasi = document.getElementById("estimasi");
-            var batasAman = sekarang + 1;
-            infoEstimasi.innerText = "INPUT DITOLAK! Silakan masukkan nomor minimal " + batasAman;
-            infoEstimasi.style.color = "#e74c3c";
+        function tampilkanTiketSaya(nomor) {
+            document.getElementById("nomorSayaTeks").innerText = nomor;
+            document.getElementById("boxTiket").style.display = "block";
+            document.getElementById("btnAmbilAntrian").disabled = true; // Kunci tombol agar tidak bisa klik 2x
+            document.getElementById("btnAmbilAntrian").innerText = "SUDAH DIAMBIL";
         }
 
         // 3. Fungsi Logika Perhitungan Waktu Estimasi
-        function hitungEstimasi(sekarang, saya) {
+        function hitungEstimasiWaktu(sekarang, saya) {
             var infoEstimasi = document.getElementById("estimasi");
-            if (!saya || saya <= sekarang) {
-                infoEstimasi.innerText = "--";
-                infoEstimasi.style.color = "#7f8c8d";
-                return;
-            }
+            var sayaInt = parseInt(saya);
 
-            var sisa = saya - sekarang;
-            var menit = sisa * 5; 
-            infoEstimasi.innerText = menit + " menit lagi (" + sisa + " antrian di depan Anda)";
-            infoEstimasi.style.color = "#27ae60";
+            if (sayaInt > sekarang) {
+                var sisa = sayaInt - sekarang;
+                var menit = sisa * 5; // 5 menit per orang
+                infoEstimasi.innerText = menit + " menit lagi (" + sisa + " antrian di depan Anda)";
+                infoEstimasi.style.color = "#27ae60";
+            } else if (sayaInt === sekarang) {
+                infoEstimasi.innerText = "SILAKAN MENUJU LOKET SEKARANG!";
+                infoEstimasi.style.color = "#e74c3c";
+            } else {
+                infoEstimasi.innerText = "Nomor Anda Sudah Terlewat!";
+                infoEstimasi.style.color = "#7f8c8d";
+            }
         }
     </script>
 </body>
