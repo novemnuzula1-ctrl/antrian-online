@@ -40,15 +40,14 @@
 
         // 1. Mendengarkan perubahan data di Firebase
         db.ref("/panggilan_sekarang").on("value", function(snapshot) {
-            var sekarang = snapshot.val() || 0;
+            var sekarang = parseInt(snapshot.val()) || 0;
             document.getElementById("nomor").innerText = sekarang;
 
             var inputElemen = document.getElementById("inputNomor");
             var nomorSaya = parseInt(inputElemen.value) || 0;
 
-            // Jika nomor yang sedang diketik pelanggan ternyata tersusul oleh loket
             if (nomorSaya > 0 && nomorSaya <= sekarang) {
-                inputElemen.value = ""; // Hapus otomatis inputnya
+                inputElemen.value = ""; 
                 jalankanProteksi(sekarang, nomorSaya);
             } else {
                 hitungEstimasi(sekarang, nomorSaya);
@@ -60,9 +59,8 @@
             var sekarang = parseInt(document.getElementById("nomor").innerText) || 0;
             var saya = parseInt(this.value) || 0;
 
-            // JIKA NOMOR YANG DIINPUT SAMA ATAU LEBIH KECIL DARI LOKET (OTOMATIS DIKUNCI & DIHAPUS)
             if (saya > 0 && saya <= sekarang) {
-                this.value = ""; // Langsung hapus angka di kolom input
+                this.value = ""; 
                 jalankanProteksi(sekarang, saya);
             } else {
                 hitungEstimasi(sekarang, saya);
@@ -72,7 +70,7 @@
         function jalankanProteksi(sekarang, saya) {
             var infoEstimasi = document.getElementById("estimasi");
             if (saya === sekarang) {
-                infoEstimasi.innerText = "NOMOR 4 SEDANG DILAYANI! INPUT DITOLAK.";
+                infoEstimasi.innerText = "NOMOR " + sekarang + " SEDANG DILAYANI! INPUT DITOLAK.";
                 infoEstimasi.style.color = "#e74c3c";
             } else {
                 infoEstimasi.innerText = "NOMOR SUDAH TERLEWAT! INPUT DITOLAK.";
