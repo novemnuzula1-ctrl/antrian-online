@@ -13,7 +13,7 @@
         .info { font-size: 16px; color: #7f8c8d; margin: 10px 0; }
         #estimasi { font-weight: bold; color: #27ae60; font-size: 18px; }
         
-        /* Style Tombol Ambil Antrian Baru */
+        /* Style Tombol Ambil Antrian Otomatis */
         .btn-ambil { background: #3498db; color: white; border: none; padding: 15px 30px; font-size: 18px; font-weight: bold; border-radius: 10px; cursor: pointer; width: 100%; max-width: 250px; margin-top: 10px; transition: 0.2s; }
         .btn-ambil:hover { background: #2980b9; }
         .btn-ambil:disabled { background: #bdc3c7; cursor: not-allowed; }
@@ -52,44 +52,47 @@
 
         var db = firebase.database();
         var antrianTerakhirGlobal = 0;
-        var nomorLokalSaya = localStorage.getItem("nomor_tiket_saya") || 0; // Menyimpan nomor di HP agar tidak hilang saat di-refresh
+        var nomorLokalSaya = localStorage.getItem("nomor_tiket_saya") || 0; // Menyimpan nomor di HP agar tidak hilang saat refresh
 
         // Jika pelanggan sudah pernah klik ambil nomor sebelumnya, langsung munculkan tiketnya
         if (nomorLokalSaya > 0) {
             tampilkanTiketSaya(nomorLokalSaya);
         }
 
-        // 1. Memantau Jalur Antrian Sekarang (Loket) & Antrian Terakhir
-        db.ref().on("value", function(snapshot) {
-            var data = snapshot.val();
-            var sekarang = parseInt(data.panggilan_sekarang) || 0;
-            antrianTerakhirGlobal = parseInt(data.antrian_terakhir) || 0;
+        // 1. Memantau Jalur "panggilan_sekarang" dari Firebase secara Real-Time
+        db.ref("/panggilan_sekarang").on("value", function(snapshot) {
+            var sekarang = parseInt(snapshot.val()) || 0;
             
-            // Update nomor loket berjalan di web
+            // Mengubah nomor besar di website secara otomatis saat tombol NEXT ditekan petugas
             document.getElementById("nomor").innerText = sekarang;
 
-            // Jika pelanggan sudah punya nomor, update terus estimasi waktunya secara real-time
+            // Jika pelanggan sudah punya tiket, update terus estimasi waktu tunggunya
             if (nomorLokalSaya > 0) {
                 hitungEstimasiWaktu(sekarang, nomorLokalSaya);
             }
         });
 
-        // 2. Logika Ambil Nomor Otomatis saat Tombol Diklik
+        // 2. Memantau Jalur "antrian_terakhir" dari Firebase secara Real-Time
+        db.ref("/antrian_terakhir").on("value", function(snapshot) {
+            antrianTerakhirGlobal = parseInt(snapshot.val()) || 0;
+        });
+
+        // 3. Logika Ambil Nomor Otomatis saat Tombol "AMBIL NOMOR" diklik pelanggan
         document.getElementById("btnAmbilAntrian").addEventListener("click", function() {
-            // Naikkan 1 angka dari antrian terakhir yang tercatat di server
+            // Urutan kedatangan terpusat: naik 1 angka dari antrian terakhir di server
             var nomorBaru = antrianTerakhirGlobal + 1;
             
-            // Kirim nomor baru ini ke laci antrian_terakhir di Firebase
+            // Simpan nomor baru ke Firebase laci antrian_terakhir
             db.ref("/antrian_terakhir").set(nomorBaru);
             
-            // Simpan nomor ini di memori HP pelanggan agar kalau web tertutup, nomornya tidak hilang
+            // Simpan di memori lokal HP pelanggan
             nomorLokalSaya = nomorBaru;
             localStorage.setItem("nomor_tiket_saya", nomorBaru);
             
-            // Tampilkan ke layar HP pelanggan
+            // Munculkan struk tiket digital di layar HP
             tampilkanTiketSaya(nomorBaru);
             
-            // Jalankan hitung estimasi pertama kali
+            // Jalankan perhitungan menit tunggu pertama kali
             var sekarang = parseInt(document.getElementById("nomor").innerText) || 0;
             hitungEstimasiWaktu(sekarang, nomorBaru);
         });
@@ -97,18 +100,18 @@
         function tampilkanTiketSaya(nomor) {
             document.getElementById("nomorSayaTeks").innerText = nomor;
             document.getElementById("boxTiket").style.display = "block";
-            document.getElementById("btnAmbilAntrian").disabled = true; // Kunci tombol agar tidak bisa klik 2x
+            document.getElementById("btnAmbilAntrian").disabled = true; // Kunci tombol agar tidak disalahgunakan
             document.getElementById("btnAmbilAntrian").innerText = "SUDAH DIAMBIL";
         }
 
-        // 3. Fungsi Logika Perhitungan Waktu Estimasi
+        // 4. Fungsi Logika Perhitungan Waktu Estimasi Tunggu Pelanggan
         function hitungEstimasiWaktu(sekarang, saya) {
             var infoEstimasi = document.getElementById("estimasi");
             var sayaInt = parseInt(saya);
 
             if (sayaInt > sekarang) {
                 var sisa = sayaInt - sekarang;
-                var menit = sisa * 5; // 5 menit per orang
+                var menit = sisa * 5; // Asumsi rata-rata 5 menit pelayanan per orang
                 infoEstimasi.innerText = menit + " menit lagi (" + sisa + " antrian di depan Anda)";
                 infoEstimasi.style.color = "#27ae60";
             } else if (sayaInt === sekarang) {
