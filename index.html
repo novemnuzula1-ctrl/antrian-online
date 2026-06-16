@@ -27,16 +27,11 @@
 
     <script>
         // --- 1. COPY CONFIG DARI FIREBASE CONSOLE ---
-const firebaseConfig = {
-  apiKey: "AIzaSyC2s9d6HCWpxoW6LpoUeebqucINm7QslHk",
-  authDomain: "antriansmart.firebaseapp.com",
-  databaseURL: "antriansmart-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "antriansmart",
-  storageBucket: "antriansmart.firebasestorage.app",
-  messagingSenderId: "951679585754",
-  appId: "1:951679585754:web:45311f5757c9fd2ea804e3",
-  measurementId: "G-WTY4JFCMXL"
-};
+        var firebaseConfig = {
+            apiKey: "AIzaSyC2s9d6HCWpxoW6LpoUeebqucINm7QslHk",
+            databaseURL: "https://antriansmart-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "antriansmart",
+        };
         firebase.initializeApp(firebaseConfig);
 
         var db = firebase.database();
