@@ -13,6 +13,7 @@
         .info { font-size: 18px; color: #7f8c8d; }
         #estimasi { font-weight: bold; color: #27ae60; }
         input { padding: 10px; width: 80px; text-align: center; font-size: 18px; border-radius: 8px; border: 1px solid #ccc; }
+        input:invalid { border: 2px solid #e74c3c; background: #fce4e4; }
     </style>
 </head>
 <body>
@@ -21,7 +22,7 @@
         <h1>NOMOR SEKARANG</h1>
         <div id="nomor">0</div>
         <p class="info">Silakan masukkan nomor antrian Anda:</p>
-        <input type="number" id="inputNomor" placeholder="Ex: 15">
+        <input type="number" id="inputNomor" min="1" placeholder="Ex: 15">
         <hr style="border: 1px dashed #eee; margin: 20px 0;">
         <p class="info">Estimasi Tunggu:<br><span id="estimasi">--</span></p>
     </div>
@@ -44,44 +45,49 @@
             document.getElementById("nomor").innerText = sekarang;
 
             var inputElemen = document.getElementById("inputNomor");
+            
+            // KUNCI UTAMA: Mengubah batas minimal input secara dinamis (Nomor Sekarang + 1)
+            // Jadi jika loket = 4, maka minimal input yang diizinkan adalah 5
+            var batasMinimal = sekarang + 1;
+            inputElemen.min = batasMinimal;
+
             var nomorSaya = parseInt(inputElemen.value) || 0;
 
+            // Jika nomor yang sedang dimasukkan tiba-tiba tersusul oleh loket
             if (nomorSaya > 0 && nomorSaya <= sekarang) {
                 inputElemen.value = ""; 
-                jalankanProteksi(sekarang, nomorSaya);
+                tampilkanPesanError(sekarang);
             } else {
                 hitungEstimasi(sekarang, nomorSaya);
             }
         });
 
-        // 2. Mendengarkan input ketikan dari pelanggan (Proteksi Ketat)
+        // 2. Mendengarkan input ketikan pelanggan secara real-time
         document.getElementById("inputNomor").addEventListener("input", function() {
             var sekarang = parseInt(document.getElementById("nomor").innerText) || 0;
             var saya = parseInt(this.value) || 0;
 
+            // Jika pelanggan nekat mengetik angka yang sama atau di bawah nomor sekarang
             if (saya > 0 && saya <= sekarang) {
-                this.value = ""; 
-                jalankanProteksi(sekarang, saya);
+                this.value = ""; // Langsung hapus paksa jalurnya
+                tampilkanPesanError(sekarang);
             } else {
                 hitungEstimasi(sekarang, saya);
             }
         });
 
-        function jalankanProteksi(sekarang, saya) {
+        // Fungsi menampilkan pesan penolakan yang dinamis
+        function tampilkanPesanError(sekarang) {
             var infoEstimasi = document.getElementById("estimasi");
-            if (saya === sekarang) {
-                infoEstimasi.innerText = "NOMOR " + sekarang + " SEDANG DILAYANI! INPUT DITOLAK.";
-                infoEstimasi.style.color = "#e74c3c";
-            } else {
-                infoEstimasi.innerText = "NOMOR SUDAH TERLEWAT! INPUT DITOLAK.";
-                infoEstimasi.style.color = "#7f8c8d";
-            }
+            var batasAman = sekarang + 1;
+            infoEstimasi.innerText = "INPUT DITOLAK! Silakan masukkan nomor minimal " + batasAman;
+            infoEstimasi.style.color = "#e74c3c";
         }
 
         // 3. Fungsi Logika Perhitungan Waktu Estimasi
         function hitungEstimasi(sekarang, saya) {
             var infoEstimasi = document.getElementById("estimasi");
-            if (!saya || saya <= 0) {
+            if (!saya || saya <= sekarang) {
                 infoEstimasi.innerText = "--";
                 infoEstimasi.style.color = "#7f8c8d";
                 return;
