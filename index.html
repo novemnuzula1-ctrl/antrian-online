@@ -38,52 +38,61 @@
 
         var db = firebase.database();
 
-        // 1. Mendengarkan perubahan data secara spesifik di laci "/panggilan_sekarang"
+        // 1. Mendengarkan perubahan data di Firebase
         db.ref("/panggilan_sekarang").on("value", function(snapshot) {
             var sekarang = snapshot.val() || 0;
-            
-            // Update nomor besar di layar website
             document.getElementById("nomor").innerText = sekarang;
 
-            // Jalankan hitung estimasi otomatis saat alat ditekan
-            var nomorSaya = document.getElementById("inputNomor").value;
-            hitungEstimasi(sekarang, nomorSaya);
+            var inputElemen = document.getElementById("inputNomor");
+            var nomorSaya = parseInt(inputElemen.value) || 0;
+
+            // Jika nomor yang sedang diketik pelanggan ternyata tersusul oleh loket
+            if (nomorSaya > 0 && nomorSaya <= sekarang) {
+                inputElemen.value = ""; // Hapus otomatis inputnya
+                jalankanProteksi(sekarang, nomorSaya);
+            } else {
+                hitungEstimasi(sekarang, nomorSaya);
+            }
         });
 
-        // 2. Mendengarkan input ketikan dari pelanggan di kolom nomor tiket
+        // 2. Mendengarkan input ketikan dari pelanggan (Proteksi Ketat)
         document.getElementById("inputNomor").addEventListener("input", function() {
             var sekarang = parseInt(document.getElementById("nomor").innerText) || 0;
-            var saya = this.value;
-            hitungEstimasi(sekarang, saya);
+            var saya = parseInt(this.value) || 0;
+
+            // JIKA NOMOR YANG DIINPUT SAMA ATAU LEBIH KECIL DARI LOKET (OTOMATIS DIKUNCI & DIHAPUS)
+            if (saya > 0 && saya <= sekarang) {
+                this.value = ""; // Langsung hapus angka di kolom input
+                jalankanProteksi(sekarang, saya);
+            } else {
+                hitungEstimasi(sekarang, saya);
+            }
         });
 
-        // 3. Fungsi Logika Perhitungan Waktu Estimasi Adaptif
+        function jalankanProteksi(sekarang, saya) {
+            var infoEstimasi = document.getElementById("estimasi");
+            if (saya === sekarang) {
+                infoEstimasi.innerText = "NOMOR 4 SEDANG DILAYANI! INPUT DITOLAK.";
+                infoEstimasi.style.color = "#e74c3c";
+            } else {
+                infoEstimasi.innerText = "NOMOR SUDAH TERLEWAT! INPUT DITOLAK.";
+                infoEstimasi.style.color = "#7f8c8d";
+            }
+        }
+
+        // 3. Fungsi Logika Perhitungan Waktu Estimasi
         function hitungEstimasi(sekarang, saya) {
             var infoEstimasi = document.getElementById("estimasi");
-            var sayaInt = parseInt(saya);
-
-            // Jika kolom input kosong atau angka 0
-            if (!saya || sayaInt <= 0) {
+            if (!saya || saya <= 0) {
                 infoEstimasi.innerText = "--";
                 infoEstimasi.style.color = "#7f8c8d";
                 return;
             }
 
-            if (sayaInt > sekarang) {
-                // Skenario 1: Antrian belum dipanggil
-                var sisa = sayaInt - sekarang;
-                var menit = sisa * 5; // Asumsi 5 menit per orang
-                infoEstimasi.innerText = menit + " menit lagi (" + sisa + " antrian di depan Anda)";
-                infoEstimasi.style.color = "#27ae60";
-            } else if (sayaInt === sekarang) {
-                // Skenario 2: Nomor tepat sama dengan di loket
-                infoEstimasi.innerText = "SILAKAN MENUJU LOKET SEKARANG!";
-                infoEstimasi.style.color = "#e74c3c";
-            } else {
-                // Skenario 3: Nomor pelanggan sudah terlewat
-                infoEstimasi.innerText = "Nomor Anda Sudah Terlewat!";
-                infoEstimasi.style.color = "#7f8c8d";
-            }
+            var sisa = saya - sekarang;
+            var menit = sisa * 5; 
+            infoEstimasi.innerText = menit + " menit lagi (" + sisa + " antrian di depan Anda)";
+            infoEstimasi.style.color = "#27ae60";
         }
     </script>
 </body>
