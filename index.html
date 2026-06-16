@@ -7,11 +7,12 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #f4f7f6; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        h1 { color: #2c3e50; }
-        #nomor { font-size: 80px; color: #e74c3c; margin: 10px 0; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
+        h1 { color: #2c3e50; font-size: 24px; }
+        #nomor { font-size: 80px; color: #e74c3c; margin: 10px 0; font-weight: bold; }
         .info { font-size: 18px; color: #7f8c8d; }
         #estimasi { font-weight: bold; color: #27ae60; }
+        input { padding: 10px; width: 80px; text-align: center; font-size: 18px; border-radius: 8px; border: 1px solid #ccc; }
     </style>
 </head>
 <body>
@@ -20,44 +21,68 @@
         <h1>NOMOR SEKARANG</h1>
         <div id="nomor">0</div>
         <p class="info">Silakan masukkan nomor antrian Anda:</p>
-        <input type="number" id="inputNomor" placeholder="Contoh: 15" style="padding:10px; width:60px;">
-        <hr>
-        <p class="info">Estimasi Tunggu: <span id="estimasi">--</span></p>
+        <input type="number" id="inputNomor" placeholder="Ex: 15">
+        <hr style="border: 1px dashed #eee; margin: 20px 0;">
+        <p class="info">Estimasi Tunggu:<br><span id="estimasi">--</span></p>
     </div>
 
     <script>
-        // --- 1. COPY CONFIG DARI FIREBASE CONSOLE ---
+        // --- KONFIGURASI FIREBASE ---
         var firebaseConfig = {
-  apiKey: "AIzaSyC2s9d6HCWpxoW6LpoUeebqucINm7QslHk",
-  authDomain: "antriansmart.firebaseapp.com",
-  databaseURL: "https://antriansmart-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "antriansmart",
+            apiKey: "AIzaSyC2s9d6HCWpxoW6LpoUeebqucINm7QslHk",
+            authDomain: "antriansmart.firebaseapp.com",
+            databaseURL: "https://antriansmart-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "antriansmart",
         };
         firebase.initializeApp(firebaseConfig);
 
         var db = firebase.database();
-        var nomorSaya = 0;
 
-        // Mendengarkan perubahan di Firebase
-        db.ref().on("value", function(snapshot) {
-            var data = snapshot.val();
-            var sekarang = data.panggilan_sekarang || 0;
+        // 1. Mendengarkan perubahan data secara spesifik di laci "/panggilan_sekarang"
+        db.ref("/panggilan_sekarang").on("value", function(snapshot) {
+            var sekarang = snapshot.val() || 0;
             
-            // Update nomor di layar
+            // Update nomor besar di layar website
             document.getElementById("nomor").innerText = sekarang;
 
-            // Hitung estimasi otomatis
-            nomorSaya = document.getElementById("inputNomor").value;
+            // Jalankan hitung estimasi otomatis saat alat ditekan
+            var nomorSaya = document.getElementById("inputNomor").value;
             hitungEstimasi(sekarang, nomorSaya);
         });
 
+        // 2. Mendengarkan input ketikan dari pelanggan di kolom nomor tiket
+        document.getElementById("inputNomor").addEventListener("input", function() {
+            var sekarang = parseInt(document.getElementById("nomor").innerText) || 0;
+            var saya = this.value;
+            hitungEstimasi(sekarang, saya);
+        });
+
+        // 3. Fungsi Logika Perhitungan Waktu Estimasi Adaptif
         function hitungEstimasi(sekarang, saya) {
-            if (saya > sekarang) {
-                var sisa = saya - sekarang;
+            var infoEstimasi = document.getElementById("estimasi");
+            var sayaInt = parseInt(saya);
+
+            // Jika kolom input kosong atau angka 0
+            if (!saya || sayaInt <= 0) {
+                infoEstimasi.innerText = "--";
+                infoEstimasi.style.color = "#7f8c8d";
+                return;
+            }
+
+            if (sayaInt > sekarang) {
+                // Skenario 1: Antrian belum dipanggil
+                var sisa = sayaInt - sekarang;
                 var menit = sisa * 5; // Asumsi 5 menit per orang
-                document.getElementById("estimasi").innerText = menit + " menit lagi";
-            } else if (saya != 0 && saya <= sekarang) {
-                document.getElementById("estimasi").innerText = "Silakan ke Loket!";
+                infoEstimasi.innerText = menit + " menit lagi (" + sisa + " antrian di depan Anda)";
+                infoEstimasi.style.color = "#27ae60";
+            } else if (sayaInt === sekarang) {
+                // Skenario 2: Nomor tepat sama dengan di loket
+                infoEstimasi.innerText = "SILAKAN MENUJU LOKET SEKARANG!";
+                infoEstimasi.style.color = "#e74c3c";
+            } else {
+                // Skenario 3: Nomor pelanggan sudah terlewat
+                infoEstimasi.innerText = "Nomor Anda Sudah Terlewat!";
+                infoEstimasi.style.color = "#7f8c8d";
             }
         }
     </script>
