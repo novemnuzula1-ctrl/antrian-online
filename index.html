@@ -13,11 +13,9 @@
         .info { font-size: 16px; color: #7f8c8d; margin: 10px 0; }
         #estimasi { font-weight: bold; color: #27ae60; font-size: 18px; }
         
-        /* Indikator Status Server Modern */
         .status-server { font-size: 12px; color: #27ae60; font-weight: bold; margin-bottom: 15px; display: inline-block; background: #e8f8f0; padding: 5px 10px; border-radius: 20px; }
-        .status-dot { height: 8px; width: 8px; background-color: #27ae60; border-radius: 50%; display: inline-block; margin-right: 5px; animate: blink 1s infinite; }
+        .status-dot { height: 8px; width: 8px; background-color: #27ae60; border-radius: 50%; display: inline-block; margin-right: 5px; }
 
-        /* Style Tombol Ambil Antrian Otomatis */
         .btn-ambil { background: #3498db; color: white; border: none; padding: 15px 30px; font-size: 18px; font-weight: bold; border-radius: 10px; cursor: pointer; width: 100%; max-width: 250px; margin-top: 10px; transition: 0.2s; }
         .btn-ambil:hover { background: #2980b9; }
         .btn-ambil:disabled { background: #bdc3c7; cursor: not-allowed; }
@@ -25,7 +23,6 @@
         .box-tiket { background: #e8f4f8; padding: 15px; border-radius: 10px; margin-top: 15px; border: 2px dashed #3498db; }
         #nomorSayaTeks { font-size: 32px; color: #2c3e50; font-weight: bold; margin: 5px 0; }
 
-        /* Animasi Berkedip untuk Peringatan Loket (Modern) */
         @keyframes blink {
             0% { opacity: 1; }
             50% { opacity: 0.4; }
@@ -38,7 +35,6 @@
 
     <div class="card">
         <div class="status-server"><span class="status-dot"></span>SISTEM ONLINE</div>
-
         <h1>NOMOR SEDANG DILAYANI</h1>
         <div id="nomor">0</div>
         
@@ -67,14 +63,89 @@
         var db = firebase.database();
         var antrianTerakhirGlobal = 0;
         var nomorLokalSaya = localStorage.getItem("nomor_tiket_saya") || 0; 
-        var pertamaKaliLoad = true; // Mencegah website langsung bersuara saat pertama kali dibuka
+        var pertamaKaliLoad = true;
 
-        // Jika pelanggan sudah punya nomor sebelumnya, langsung tampilkan
         if (nomorLokalSaya > 0) {
             tampilkanTiketSaya(nomorLokalSaya);
         }
 
-        // 1. Memantau Jalur "panggilan_sekarang" (Loket) & Menjalankan Suara Panggilan
+        // 1. Memantau panggilan_sekarang
         db.ref("/panggilan_sekarang").on("value", function(snapshot) {
             var sekarang = parseInt(snapshot.val()) || 0;
-            document.getElementById("nomor").innerText
+            document.getElementById("nomor").innerText = sekarang;
+
+            if (!pertamaKaliLoad && sekarang > 0) {
+                panggilSuaraOtomatis(sekarang);
+            }
+            pertamaKaliLoad = false;
+
+            if (nomorLokalSaya > 0) {
+                hitungEstimasiWaktu(sekarang, nomorLokalSaya);
+            }
+        });
+
+        // 2. Memantau antrian_terakhir
+        db.ref("/antrian_terakhir").on("value", function(snapshot) {
+            antrianTerakhirGlobal = parseInt(snapshot.val()) || 0;
+        });
+
+        // 3. Logika Ambil Nomor dengan Proteksi Kegagalan Server
+        document.getElementById("btnAmbilAntrian").addEventListener("click", function() {
+            // Naikkan angka lokal terlebih dahulu agar respon instan
+            antrianTerakhirGlobal = antrianTerakhirGlobal + 1;
+            
+            // Kirim data ke Firebase
+            db.ref("/antrian_terakhir").set(antrianTerakhirGlobal);
+            
+            // Amankan di memori browser
+            nomorLokalSaya = antrianTerakhirGlobal;
+            localStorage.setItem("nomor_tiket_saya", nomorLokalSaya);
+            
+            // Paksa tampilkan ke layar tanpa menunggu server
+            tampilkanTiketSaya(nomorLokalSaya);
+            
+            var sekarang = parseInt(document.getElementById("nomor").innerText) || 0;
+            hitungEstimasiWaktu(sekarang, nomorLokalSaya);
+        });
+
+        function tampilkanTiketSaya(nomor) {
+            document.getElementById("nomorSayaTeks").innerText = nomor;
+            document.getElementById("boxTiket").style.display = "block";
+            document.getElementById("btnAmbilAntrian").disabled = true; 
+            document.getElementById("btnAmbilAntrian").innerText = "SUDAH DIAMBIL";
+        }
+
+        function panggilSuaraOtomatis(nomorAntrian) {
+            if ('speechSynthesis' in window) {
+                var teksPanggilan = "Nomor antrian " + nomorAntrian + ", silakan menuju loket.";
+                var pesanSuara = new SpeechSynthesisUtterance(teksPanggilan);
+                pesanSuara.lang = "id-ID"; 
+                pesanSuara.rate = 0.9; 
+                pesanSuara.pitch = 1.0; 
+                window.speechSynthesis.speak(pesanSuara);
+            }
+        }
+
+        function hitungEstimasiWaktu(sekarang, saya) {
+            var infoEstimasi = document.getElementById("estimasi");
+            var sayaInt = parseInt(saya);
+            infoEstimasi.classList.remove("panggil-sekarang");
+
+            if (sayaInt > sekarang) {
+                var sisa = sayaInt - chassis;
+                var sisa = sayaInt - sekarang;
+                var menit = sisa * 5; 
+                infoEstimasi.innerText = menit + " menit lagi (" + sisa + " antrian di depan Anda)";
+                infoEstimasi.style.color = "#27ae60";
+            } else if (sayaInt === sekarang) {
+                infoEstimasi.innerText = "SILAKAN MENUJU LOKET SEKARANG!";
+                infoEstimasi.style.color = "#e74c3c";
+                infoEstimasi.classList.add("panggil-sekarang");
+            } else {
+                infoEstimasi.innerText = "Nomor Anda Sudah Terlewat!";
+                infoEstimasi.style.color = "#7f8c8d";
+            }
+        }
+    </script>
+</body>
+</html>
