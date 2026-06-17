@@ -86,9 +86,16 @@
             }
         });
 
-        // 2. Memantau antrian_terakhir
+        // 2. Memantau antrian_terakhir (KUNCI AUTO-RESET SINKRON)
         db.ref("/antrian_terakhir").on("value", function(snapshot) {
             antrianTerakhirGlobal = parseInt(snapshot.val()) || 0;
+            
+            // JIKA FIREBASE DI-RESET KE 0 OLEH ALAT YANG BARU MENYALA
+            if (antrianTerakhirGlobal === 0) {
+                nomorLokalSaya = 0;
+                localStorage.removeItem("nomor_tiket_saya"); // Hapus memori tiket di HP pelanggan
+                sembunyikanTiketDanAktifkanTombol(); // Reset tampilan halaman web
+            }
         });
 
         // 3. Logika Ambil Nomor
@@ -112,6 +119,14 @@
             document.getElementById("btnAmbilAntrian").innerText = "SUDAH DIAMBIL";
         }
 
+        // Fungsi mengembalikan tampilan web ke awal mula (Antrian Baru)
+        function sembunyikanTiketDanAktifkanTombol() {
+            document.getElementById("boxTiket").style.display = "none";
+            document.getElementById("btnAmbilAntrian").disabled = false; 
+            document.getElementById("btnAmbilAntrian").innerText = "AMBIL NOMOR";
+            document.getElementById("estimasi").innerText = "--";
+        }
+
         function panggilSuaraOtomatis(nomorAntrian) {
             if ('speechSynthesis' in window) {
                 var teksPanggilan = "Nomor antrian " + nomorAntrian + ", silakan menuju loket.";
@@ -123,11 +138,12 @@
             }
         }
 
-        // 4. Fungsi Logika Perhitungan Waktu Estimasi Tunggu (SUDAH DIPERBAIKI)
         function hitungEstimasiWaktu(sekarang, saya) {
             var infoEstimasi = document.getElementById("estimasi");
             var sayaInt = parseInt(saya);
             infoEstimasi.classList.remove("panggil-sekarang");
+
+            if (sayaInt === 0) return;
 
             if (sayaInt > sekarang) {
                 var sisa = sayaInt - sekarang;
