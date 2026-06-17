@@ -38,6 +38,8 @@
         <h1>NOMOR SEDANG DILAYANI</h1>
         <div id="nomor">0</div>
         
+        <button onclick="panggilSuaraOtomatis(1)" style="background:none; border:none; color:#95a5a6; font-size:12px; cursor:pointer; text-decoration:underline; margin-bottom:10px;">(Klik untuk Tes Suara)</button>
+        
         <hr style="border: 1px dashed #eee; margin: 15px 0;">
         
         <p class="info">Klik tombol di bawah untuk mengambil nomor antrian Anda:</p>
@@ -89,19 +91,14 @@
             antrianTerakhirGlobal = parseInt(snapshot.val()) || 0;
         });
 
-        // 3. Logika Ambil Nomor dengan Proteksi Kegagalan Server
+        // 3. Logika Ambil Nomor
         document.getElementById("btnAmbilAntrian").addEventListener("click", function() {
-            // Naikkan angka lokal terlebih dahulu agar respon instan
-            antrianTerakhirGlobal = antrianTerakhirGlobal + 1;
+            var nomorBaru = antrianTerakhirGlobal + 1;
+            db.ref("/antrian_terakhir").set(nomorBaru);
             
-            // Kirim data ke Firebase
-            db.ref("/antrian_terakhir").set(antrianTerakhirGlobal);
-            
-            // Amankan di memori browser
-            nomorLokalSaya = antrianTerakhirGlobal;
+            nomorLokalSaya = nomorBaru;
             localStorage.setItem("nomor_tiket_saya", nomorLokalSaya);
             
-            // Paksa tampilkan ke layar tanpa menunggu server
             tampilkanTiketSaya(nomorLokalSaya);
             
             var sekarang = parseInt(document.getElementById("nomor").innerText) || 0;
@@ -126,13 +123,13 @@
             }
         }
 
+        // 4. Fungsi Logika Perhitungan Waktu Estimasi Tunggu (SUDAH DIPERBAIKI)
         function hitungEstimasiWaktu(sekarang, saya) {
             var infoEstimasi = document.getElementById("estimasi");
             var sayaInt = parseInt(saya);
             infoEstimasi.classList.remove("panggil-sekarang");
 
             if (sayaInt > sekarang) {
-                var sisa = sayaInt - chassis;
                 var sisa = sayaInt - sekarang;
                 var menit = sisa * 5; 
                 infoEstimasi.innerText = menit + " menit lagi (" + sisa + " antrian di depan Anda)";
