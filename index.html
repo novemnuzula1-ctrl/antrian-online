@@ -121,4 +121,63 @@
             document.getElementById("nomorSayaTeks").innerText = nomor;
             document.getElementById("boxTiket").style.display = "block";
             document.getElementById("btnAmbilAntrian").disabled = true; 
-            document.getElementById("btnAmbilAntrian").innerText = "SUDA
+            document.getElementById("btnAmbilAntrian").innerText = "SUDAH DIAMBIL";
+        }
+
+        function sembunyikanTiketDanAktifkanTombol() {
+            document.getElementById("boxTiket").style.display = "none";
+            document.getElementById("btnAmbilAntrian").disabled = false; 
+            document.getElementById("btnAmbilAntrian").innerText = "AMBIL NOMOR";
+            document.getElementById("estimasi").innerText = "--";
+        }
+
+        // 4. FUNGSI UTAMA TEXT-TO-SPEECH (SUARA MANUSIA INDONESIA)
+        function panggilSuaraOtomatis(nomorAntrian) {
+            if ('speechSynthesis' in window) {
+                // Batalkan panggilan suara lama yang sedang mengantre di memori browser
+                window.speechSynthesis.cancel();
+
+                var teksPanggilan = "Nomor antrian " + nomorAntrian + ", silakan menuju loket.";
+                var pesanSuara = new SpeechSynthesisUtterance(teksPanggilan);
+                
+                pesanSuara.lang = "id-ID"; 
+                pesanSuara.rate = 0.85; // Kecepatan bicara pas, tidak terlalu cepat
+                pesanSuara.pitch = 1.0;  // Nada suara natural
+                
+                window.speechSynthesis.speak(pesanSuara);
+            }
+        }
+
+        // Fungsi khusus membuka blokir audio browser saat tombol ditekan
+        function pancingIzinAudio() {
+            if ('speechSynthesis' in window) {
+                var pancingan = new SpeechSynthesisUtterance("");
+                window.speechSynthesis.speak(pancingan);
+            }
+        }
+
+        // 5. Fungsi Logika Perhitungan Waktu Estimasi Tunggu
+        function hitungEstimasiWaktu(sekarang, saya) {
+            var infoEstimasi = document.getElementById("estimasi");
+            var sayaInt = parseInt(saya);
+            infoEstimasi.classList.remove("panggil-sekarang");
+
+            if (sayaInt === 0) return;
+
+            if (sayaInt > sekarang) {
+                var sisa = sayaInt - sekarang;
+                var menit = sisa * 5; 
+                infoEstimasi.innerText = menit + " menit lagi (" + sisa + " antrian di depan Anda)";
+                infoEstimasi.style.color = "#27ae60";
+            } else if (sayaInt === sekarang) {
+                infoEstimasi.innerText = "SILAKAN MENUJU LOKET SEKARANG!";
+                infoEstimasi.style.color = "#e74c3c";
+                infoEstimasi.classList.add("panggil-sekarang");
+            } else {
+                infoEstimasi.innerText = "Nomor Anda Sudah Terlewat!";
+                infoEstimasi.style.color = "#7f8c8d";
+            }
+        }
+    </script>
+</body>
+</html>
